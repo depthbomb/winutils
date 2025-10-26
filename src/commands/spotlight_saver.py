@@ -3,12 +3,12 @@ from shutil import copy
 from src.app import App
 from pathlib import Path
 from struct import unpack
+from sys import executable
 from typing import Annotated
 from foxcli.option import Opt
 from src.lib.types import TriBool
 from ctypes import byref, wintypes
 from foxcli.command import Command
-from src import APP_NAME, IS_COMPILED
 from src.lib.native import GUID, CoTaskMemFree, FOLDERID_Pictures, SHGetKnownFolderPath
 
 class SpotlightSaverCommand(Command):
@@ -74,6 +74,8 @@ class SpotlightSaverCommand(Command):
         run on login, `False` if it has been removed from login, and `None` if there was an error performing either
         operation.
         """
+        from src import IS_COMPILED
+
         if not IS_COMPILED:
             self.stdout.write('\nStartup can only be toggle when the app is compiled')
             return None
@@ -90,7 +92,7 @@ class SpotlightSaverCommand(Command):
         )
 
         key_path = r'Software\Microsoft\Windows\CurrentVersion\Run'
-        exe_path = str(Path(globals()['__compiled__'].containing_dir) / f'{APP_NAME}.exe') + ' spotlight-saver'
+        exe_path = str(Path(executable).parent / 'winutils.exe') + ' spotlight-saver'
         name = 'SpotlightSaver'
 
         try:
