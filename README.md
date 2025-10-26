@@ -26,3 +26,5 @@ Adding WinUtils to your PATH is handled for you when using the Standalone instal
 ### Coming from SpotlightSaver?
 
 [SpotlightSaver](https://github.com/depthbomb/SpotlightSaver) is now deprecated and its functionality is bundled into this application. To run the SpotlightSaver command on login, install it via the Standalone installation and run `winutils spotlight-saver --startup`. Run the command again to disable.
+
+Make sure to disable running on login before uninstalling WinUtils.
