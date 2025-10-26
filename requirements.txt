@@ -1,0 +1,6 @@
+foxcli==0.2.0
+orjson==3.11.4
+
+# Dev Dependencies
+nuitka==2.8.4
+invoke==2.2.1
