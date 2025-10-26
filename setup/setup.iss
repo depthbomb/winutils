@@ -88,17 +88,10 @@ end;
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}";
-
 [Files]
 Source: "..\build\src.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
-
-;[Run]
-;Filename: "{app}\{#ExeName}"; Description: "{cm:LaunchProgram,{#StringChange(NameLong, '&', '&&')}}"; Flags: nowait postinstall shellexec skipifsilent; Check: FromUpdate
-;Filename: "{app}\{#ExeName}"; Description: "{cm:LaunchProgram,{#StringChange(NameLong, '&', '&&')}}"; Flags: nowait postinstall shellexec skipifsilent unchecked; Check: FromNormal
 
 [UninstallDelete]
 Type: dirifempty; Name: "{app}"
