@@ -1,5 +1,8 @@
 from foxcli.cli import CLI
+from src import APP_NAME, APP_VERSION_STRING
 
 class App(CLI):
-    # verbosity: Annotated[int, Option('--verbosity', '-v', action='count', help='The verbosity of output')] = 0
-    pass
+    def __init__(self):
+        super().__init__(name=APP_NAME, version=APP_VERSION_STRING, description=APP_NAME)
+
+app = App()

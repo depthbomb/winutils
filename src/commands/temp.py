@@ -1,14 +1,14 @@
 from typing import cast
-from src.app import App
+from src.app import app
 from pathlib import Path
 from tempfile import gettempdir
 from foxcli.command import Command
 from src.lib.utils import human_size
 
-class ClearTempCommand(Command):
-    """
-    Attempts to delete all files and directories in %%TEMP%%
-    """
+@app.register()
+class ClearTemp(Command):
+    name = 'clear-temp'
+    description = 'Clears all files and directories in %TEMP%'
     def __init__(self):
         super().__init__()
 
@@ -28,14 +28,14 @@ class ClearTempCommand(Command):
         except OSError as e:
             self.errored_items.append(path)
             if e.winerror == 5:
-                self.stdout.write('\nCannot delete file %s because it is in use' % path.name)
+                self.ctx.stdout.write('\nCannot delete file %s because it is in use' % path.name)
             elif e.winerror == 145:
-                self.stdout.write('\nCannot delete non-empty directory %s likely because it contains in-use files' % path.name)
+                self.ctx.stdout.write('\nCannot delete non-empty directory %s likely because it contains in-use files' % path.name)
         except Exception as e:
             self.errored_items.append(path)
-            self.stdout.write('\nFailed to delete %s: %s' % (path.name, e))
+            self.ctx.stdout.write('\nFailed to delete %s: %s' % (path.name, e))
 
-    def run(self, app: App):
+    def run(self, args):
         temp_dir = Path(gettempdir())
         all_paths = list(temp_dir.glob('**/*'))
 
@@ -46,9 +46,9 @@ class ClearTempCommand(Command):
             self._delete_item(path)
 
         if self.deleted_items:
-            self.stdout.write('\nSuccessfully deleted %s item(s) totalling %s' % (format(len(self.deleted_items)), human_size(self.deleted_bytes)))
+            self.ctx.stdout.write('\nSuccessfully deleted %s item(s) totalling %s' % (format(len(self.deleted_items)), human_size(self.deleted_bytes)))
 
         if self.errored_items:
-            self.stdout.write('\nCould not delete %s item(s)' % format(len(self.errored_items)))
+            self.ctx.stdout.write('\nCould not delete %s item(s)' % format(len(self.errored_items)))
 
         return 0

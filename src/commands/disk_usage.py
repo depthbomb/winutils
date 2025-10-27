@@ -1,4 +1,4 @@
-from src.app import App
+from src.app import app
 from subprocess import run
 from typing import TypedDict
 from src.lib.ansi import style, colorize
@@ -11,10 +11,11 @@ class HotFixRecord(TypedDict):
     Size: int
     VolumeName: str
 
-class DiskUsageCommand(FormattableCommand):
-    """
-    Displays disk usage for all attached volumes on the system
-    """
+@app.register()
+class DiskUsage(FormattableCommand):
+    name = 'disk-usage'
+    description = 'Displays disk usage for all attached volumes on the system'
+
     def __init__(self):
         super().__init__()
 
@@ -29,11 +30,11 @@ class DiskUsageCommand(FormattableCommand):
 
         return '%s%s' % (colorize('█' * filled, fg_color=color), style('█' * (segments - filled), 'dim'))
 
-    def run(self, app: App):
+    def run(self, args):
         res = run(['wmic', 'logicaldisk', 'get', 'size,freespace,caption,volumename', '/format:csv'], text=True, capture_output=True, check=True)
         records = parse_csv_str(res.stdout)
 
-        if self.format == 'plain':
+        if self.ctx.args.get('format', str) == 'plain':
             volume_name_max_len = max((len(r['VolumeName']) for r in records), default=0)
             for record in records:
                 total_size_bytes = int(record['Size'])

@@ -1,4 +1,4 @@
-foxcli==0.2.0
+foxcli==0.5.1
 orjson==3.11.4
 
 # Dev Dependencies

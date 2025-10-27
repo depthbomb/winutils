@@ -1,4 +1,4 @@
-from src.app import App
+from src.app import app
 from subprocess import run
 from datetime import datetime
 from src.lib.ansi import link
@@ -20,12 +20,10 @@ class HotFixRecord(TypedDict):
     ServicePackInEffect: Optional[str]
     Status: Optional[str]
 
-class UpdatesCommand(FormattableCommand):
-    """
-    Functions relating to Windows updates
-    """
-    def __init__(self):
-        super().__init__()
+@app.register()
+class Updates(FormattableCommand):
+    name = 'updates'
+    description = 'Functions relating to Windows updates'
 
     def _parse_date(self, value: str | None):
         if not value:
@@ -36,7 +34,7 @@ class UpdatesCommand(FormattableCommand):
         except ValueError:
             return None
 
-    def run(self, app: App):
+    def run(self, args):
         res = run(['wmic', 'qfe', 'list', '/format:csv'], text=True, capture_output=True, check=True)
         records = parse_csv_str(res.stdout)
         sorted_records = sorted(records, key=lambda r: self._parse_date(r['InstalledOn']) or datetime.max.date())
