@@ -1,5 +1,5 @@
 foxcli==0.5.1
-orjson==3.11.4
+orjson==3.11.6
 
 # Dev Dependencies
 nuitka==2.8.4
