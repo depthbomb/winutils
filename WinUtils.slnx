@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="WinUtils.Abstractions/WinUtils.Abstractions.csproj" />
+  <Project Path="WinUtils.Lib/WinUtils.Lib.csproj" />
+  <Project Path="WinUtils/WinUtils.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="Debug|Any CPU" Project="x64" />
+  </Project>
+</Solution>
