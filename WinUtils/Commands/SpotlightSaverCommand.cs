@@ -32,11 +32,9 @@ public class SpotlightSaverCommand : ICommandModule
                 Console.WriteLine(enabled ? "Command will now be ran on startup." : "Command will no longer be ran on startup.");
                 return 0;
             }
-            else
-            {
-                Console.WriteLine("Unable to toggle startup.");
-                return 1;
-            }
+
+            Console.WriteLine("Unable to toggle startup.");
+            return 1;
         }
 
         var assetsDir = Path.Combine(

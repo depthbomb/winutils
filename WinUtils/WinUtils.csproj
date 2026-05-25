@@ -11,11 +11,7 @@
         <ApplicationIcon>..\icon.ico</ApplicationIcon>
         <AssemblyName>winutils</AssemblyName>
         <Company>Caprine Logic</Company>
-        <Configurations>Debug;Release</Configurations>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <Platforms>x64</Platforms>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     </PropertyGroup>
 
     <ItemGroup>

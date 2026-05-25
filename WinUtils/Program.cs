@@ -19,7 +19,8 @@ internal static class Program
         var commands = new ICommandModule[]
         {
             new ClearTempCommand(),
-            new SpotlightSaverCommand()
+            new SpotlightSaverCommand(),
+            new DiskUsageCommand()
         };
         foreach (var command in commands)
         {

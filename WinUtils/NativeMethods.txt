@@ -1,5 +1,11 @@
 ﻿SHQueryRecycleBinW
 SHEmptyRecycleBinW
+GetStdHandle
+GetConsoleMode
+SetConsoleMode
+
 SHERB_NOCONFIRMATION
 SHERB_NOPROGRESSUI
 SHERB_NOSOUND
+STD_HANDLE
+CONSOLE_MODE
