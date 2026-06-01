@@ -38,29 +38,25 @@ public sealed class ClearTempCommand : ICommandModule
 
         try
         {
-            var entries = Directory.EnumerateFileSystemEntries(tempDir.FullPath, "*", SearchOption.AllDirectories);
-            foreach (var entry in entries)
+            // Delete files first (parallel) to avoid removing directories before files are processed.
+            var files = Directory.EnumerateFiles(tempDir.FullPath, "*", SearchOption.AllDirectories);
+            var po    = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount) };
+
+            Parallel.ForEach(files, po, entry =>
             {
                 try
                 {
-                    var attr = File.GetAttributes(entry);
-
-                    if (attr.HasFlag(FileAttributes.Directory))
-                    {
-                        TryToDeleteDirectory(new DirectoryInfo(entry), dry);
-                    }
-                    else
-                    {
-                        TryToDeleteFile(new FileInfo(entry), dry);
-                    }
+                    TryToDeleteFile(new FileInfo(entry), dry);
                 }
                 catch
                 {
                     Console.WriteLine($"Unable to process: {entry}");
                 }
-            }
+            });
 
-            foreach (var dir in Directory.EnumerateDirectories(tempDir.FullPath, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+            // Then attempt to remove empty directories from deepest to shallowest.
+            var dirs = Directory.EnumerateDirectories(tempDir.FullPath, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length);
+            foreach (var dir in dirs)
             {
                 TryToDeleteDirectory(new DirectoryInfo(dir), dry);
             }
@@ -84,18 +80,20 @@ public sealed class ClearTempCommand : ICommandModule
     {
         try
         {
-            _totalFiles++;
-            _totalBytes += fi.Length;
+            Interlocked.Increment(ref _totalFiles);
+            Interlocked.Add(ref _totalBytes, fi.Exists ? fi.Length : 0);
 
             if (dry == true)
                 return;
 
-            var size = fi.Length;
+            var size = fi.Exists ? fi.Length : 0;
 
+            fi.Attributes &= ~FileAttributes.ReadOnly;
+            fi.Attributes =  FileAttributes.Normal;
             fi.Delete();
 
-            _deletedFiles++;
-            _deletedBytes += size;
+            Interlocked.Increment(ref _deletedFiles);
+            Interlocked.Add(ref _deletedBytes, size);
         }
         catch
         {
@@ -107,14 +105,15 @@ public sealed class ClearTempCommand : ICommandModule
     {
         try
         {
-            _totalFiles++;
+            Interlocked.Increment(ref _totalFiles);
 
             if (dry == true)
                 return;
 
+            di.Attributes &= ~FileAttributes.ReadOnly;
             di.Delete(recursive: false);
 
-            _deletedFiles++;
+            Interlocked.Increment(ref _deletedFiles);
         }
         catch
         {
