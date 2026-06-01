@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32;
+using Caprine.FilePath;
 using WinUtils.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 
@@ -37,19 +38,10 @@ public class SpotlightSaverCommand : ICommandModule
             return 1;
         }
 
-        var assetsDir = Path.Combine(
-            Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%"),
-            "Packages",
-            "Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy",
-            "LocalState",
-            "Assets");
-        var saveDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Windows Spotlight");
-        if (!Directory.Exists(saveDir))
-        {
-            Directory.CreateDirectory(saveDir);
-        }
-
-        var files = Directory.EnumerateFiles(assetsDir, "*", SearchOption.TopDirectoryOnly);
+        var assetsDir = FilePath.From(Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%"))        / "Packages" / "Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy" / "LocalState" / "Assets";
+        var saveDir   = FilePath.From(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) / "Windows Spotlight";
+        saveDir.Mkdir(existOk: true);
+        var files = Directory.EnumerateFiles(assetsDir.FullPath, "*", SearchOption.TopDirectoryOnly);
         foreach (var file in files)
         {
             var imageName = Path.GetFileNameWithoutExtension(file);
@@ -68,8 +60,8 @@ public class SpotlightSaverCommand : ICommandModule
                 continue;
             }
 
-            var imagePath = Path.Combine(saveDir, $"{imageName}.jpg");
-            if (File.Exists(imagePath))
+            var imagePath = saveDir / $"{imageName}.jpg";
+            if (imagePath.Exists)
             {
                 Console.WriteLine($"{imageName} has already been saved, skipping.");
                 continue;
@@ -77,7 +69,7 @@ public class SpotlightSaverCommand : ICommandModule
 
             var originalBytes = await File.ReadAllBytesAsync(file);
 
-            await File.WriteAllBytesAsync(imagePath, originalBytes);
+            await imagePath.WriteBytesAsync(originalBytes);
 
             Console.WriteLine($"Saved {imageName}.");
 
@@ -186,6 +178,6 @@ public class SpotlightSaverCommand : ICommandModule
         int hi = reader.ReadByte();
         int lo = reader.ReadByte();
 
-        return (ushort)((hi << 8) | lo);
+        return (ushort)(hi << 8 | lo);
     }
 }

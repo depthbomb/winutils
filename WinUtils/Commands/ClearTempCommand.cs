@@ -1,4 +1,5 @@
-﻿using WinUtils.Abstractions;
+﻿using Caprine.FilePath;
+using WinUtils.Abstractions;
 
 namespace WinUtils.Commands;
 
@@ -28,8 +29,8 @@ public sealed class ClearTempCommand : ICommandModule
 
     private async Task<int> ExecuteAsync(bool? dry, int? verbosity)
     {
-        var tempDir = Environment.ExpandEnvironmentVariables("%TEMP%");
-        if (!Directory.Exists(tempDir))
+        var tempDir = FilePath.TempDir();
+        if (!tempDir.Exists)
         {
             Console.WriteLine("Temp directory not found.");
             return 1;
@@ -37,7 +38,7 @@ public sealed class ClearTempCommand : ICommandModule
 
         try
         {
-            var entries = Directory.EnumerateFileSystemEntries(tempDir, "*", SearchOption.AllDirectories);
+            var entries = Directory.EnumerateFileSystemEntries(tempDir.FullPath, "*", SearchOption.AllDirectories);
             foreach (var entry in entries)
             {
                 try
@@ -59,7 +60,7 @@ public sealed class ClearTempCommand : ICommandModule
                 }
             }
 
-            foreach (var dir in Directory.EnumerateDirectories(tempDir, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+            foreach (var dir in Directory.EnumerateDirectories(tempDir.FullPath, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
             {
                 TryToDeleteDirectory(new DirectoryInfo(dir), dry);
             }
