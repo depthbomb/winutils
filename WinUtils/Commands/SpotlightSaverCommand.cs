@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using Caprine.FilePath;
 using WinUtils.Abstractions;
+using System.Security.Cryptography;
 using System.Diagnostics.CodeAnalysis;
 
 namespace WinUtils.Commands;
@@ -9,6 +10,19 @@ namespace WinUtils.Commands;
 public class SpotlightSaverCommand : ICommandModule
 {
     private int _savedFiles;
+
+    private readonly FilePath _savePath;
+    private readonly FilePath _windows10SearchPath;
+    private readonly FilePath _windows11SearchPath;
+
+    public SpotlightSaverCommand()
+    {
+        // @formatter:off
+        _savePath            = FilePath.From(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) / "Windows Spotlight";
+        _windows10SearchPath = FilePath.From(Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%")) / "Packages" / "Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy" / "LocalState" / "Assets";
+        _windows11SearchPath = FilePath.FromSpecialFolder(Environment.SpecialFolder.Windows) / "SystemApps" / "MicrosoftWindows.Client.CBS_cw5n1h2txyewy" / "DesktopSpotlight" / "Assets" / "Images";
+        // @formatter:on
+    }
 
     #region Implementation of ICommandModule
     public Command Build()
@@ -38,42 +52,15 @@ public class SpotlightSaverCommand : ICommandModule
             return 1;
         }
 
-        var assetsDir = FilePath.From(Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%"))        / "Packages" / "Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy" / "LocalState" / "Assets";
-        var saveDir   = FilePath.From(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) / "Windows Spotlight";
-        saveDir.Mkdir(existOk: true);
-        var files = Directory.EnumerateFiles(assetsDir.FullPath, "*", SearchOption.TopDirectoryOnly);
-        foreach (var file in files)
+        _savePath.Mkdir(existOk: true);
+
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
         {
-            var imageName = Path.GetFileNameWithoutExtension(file);
-
-            if (!TryGetImageDimensions(file, out var dimensions))
-            {
-                Console.WriteLine($"{imageName} is not a valid JPEG, skipping.");
-                continue;
-            }
-
-            var width  = dimensions.Item1;
-            var height = dimensions.Item2;
-            if (width != 1920 && height != 1080)
-            {
-                Console.WriteLine($"{imageName} is not a proper desktop wallpaper resolution, skipping.");
-                continue;
-            }
-
-            var imagePath = saveDir / $"{imageName}.jpg";
-            if (imagePath.Exists)
-            {
-                Console.WriteLine($"{imageName} has already been saved, skipping.");
-                continue;
-            }
-
-            var originalBytes = await File.ReadAllBytesAsync(file);
-
-            await imagePath.WriteBytesAsync(originalBytes);
-
-            Console.WriteLine($"Saved {imageName}.");
-
-            _savedFiles++;
+            _savedFiles = await CopyWindows11Images();
+        }
+        else
+        {
+            _savedFiles = await CopyWindows10Images();
         }
 
         if (_savedFiles > 0)
@@ -119,6 +106,73 @@ public class SpotlightSaverCommand : ICommandModule
         }
     }
 
+    private async Task<int> CopyWindows10Images()
+    {
+        var saved = 0;
+        var files = Directory.EnumerateFiles(_windows10SearchPath.FullPath, "*", SearchOption.TopDirectoryOnly);
+        foreach (var file in files)
+        {
+            var imageName = Path.GetFileNameWithoutExtension(file);
+
+            if (!TryGetImageDimensions(file, out var dimensions))
+            {
+                Console.WriteLine($"{imageName} is not a valid JPEG, skipping.");
+                continue;
+            }
+
+            var width  = dimensions.Item1;
+            var height = dimensions.Item2;
+            if (width != 1920 && height != 1080)
+            {
+                Console.WriteLine($"{imageName} is not a proper desktop wallpaper resolution, skipping.");
+                continue;
+            }
+
+            var imagePath = _savePath / $"{imageName}.jpg";
+            if (imagePath.Exists)
+            {
+                Console.WriteLine($"{imageName} has already been saved, skipping.");
+                continue;
+            }
+
+            var originalBytes = await File.ReadAllBytesAsync(file);
+
+            await imagePath.WriteBytesAsync(originalBytes);
+
+            Console.WriteLine($"Saved {imageName}.");
+
+            saved++;
+        }
+
+        return saved;
+    }
+
+    private async Task<int> CopyWindows11Images()
+    {
+        var saved = 0;
+        var files = Directory.EnumerateFiles(_windows11SearchPath.FullPath, "*.jpg", SearchOption.TopDirectoryOnly);
+        foreach (var file in files)
+        {
+            var hash      = await GetFileSHA256Hash(file);
+            var imagePath = _savePath / $"{hash}.jpg";
+            if (imagePath.Exists)
+            {
+                Console.WriteLine($"{hash} has already been saved, skipping.");
+                continue;
+            }
+
+            var originalBytes = await File.ReadAllBytesAsync(file);
+
+            await imagePath.WriteBytesAsync(originalBytes);
+
+            Console.WriteLine($"Saved {hash}.");
+
+            saved++;
+        }
+
+        return saved;
+    }
+
     private bool TryGetImageDimensions(string path, out Tuple<int, int> dimensions)
     {
         dimensions = new Tuple<int, int>(0, 0);
@@ -150,7 +204,7 @@ public class SpotlightSaverCommand : ICommandModule
                 continue;
             }
 
-            var length = ReadUInt16BE(reader);
+            var length = ReadUInt16Be(reader);
             var isSof = marker is 0xC0 or 0xC1 or 0xC2 or 0xC3 or
                                   0xC5 or 0xC6 or 0xC7 or
                                   0xC9 or 0xCA or 0xCB or
@@ -159,8 +213,8 @@ public class SpotlightSaverCommand : ICommandModule
             {
                 reader.ReadByte();
 
-                var height = ReadUInt16BE(reader);
-                var width  = ReadUInt16BE(reader);
+                var height = ReadUInt16Be(reader);
+                var width  = ReadUInt16Be(reader);
 
                 dimensions = new Tuple<int, int>(width, height);
 
@@ -173,11 +227,21 @@ public class SpotlightSaverCommand : ICommandModule
         return false;
     }
 
-    private ushort ReadUInt16BE(BinaryReader reader)
+    private ushort ReadUInt16Be(BinaryReader reader)
     {
         int hi = reader.ReadByte();
         int lo = reader.ReadByte();
 
         return (ushort)(hi << 8 | lo);
+    }
+
+    private async Task<string> GetFileSHA256Hash(string filePath)
+    {
+        await using (var fs = File.OpenRead(filePath))
+        using (var sha256 = SHA256.Create())
+        {
+            var bytes = await sha256.ComputeHashAsync(fs);
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
     }
 }
