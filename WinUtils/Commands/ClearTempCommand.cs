@@ -36,10 +36,12 @@ public sealed class ClearTempCommand : ICommandModule
             return 1;
         }
 
+        AnsiConsole.StartTabSpinner();
         try
         {
             // Delete files first (parallel) to avoid removing directories before files are processed.
-            var files = Directory.EnumerateFiles(tempDir.FullPath, "*", SearchOption.AllDirectories);
+            // EnumerateFilesSafe recurses manually so a single inaccessible subtree never aborts the walk.
+            var files = EnumerateFilesSafe(tempDir.FullPath);
             var po    = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount) };
 
             Parallel.ForEach(files, po, entry =>
@@ -54,17 +56,15 @@ public sealed class ClearTempCommand : ICommandModule
                 }
             });
 
-            // Then attempt to remove empty directories from deepest to shallowest.
-            var dirs = Directory.EnumerateDirectories(tempDir.FullPath, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length);
+            var dirs = EnumerateDirectoriesSafe(tempDir.FullPath);
             foreach (var dir in dirs)
             {
                 TryToDeleteDirectory(new DirectoryInfo(dir), dry);
             }
         }
-        catch (Exception ex)
+        finally
         {
-            Console.WriteLine($"Fatal error while clearing temp: {ex.Message}");
-            return 2;
+            AnsiConsole.StopTabSpinner();
         }
 
         Console.WriteLine("---- Summary ----");
@@ -74,6 +74,87 @@ public sealed class ClearTempCommand : ICommandModule
         Console.WriteLine($"Bytes deleted:\t{_deletedBytes.ToFileSizeString()}");
 
         return 0;
+    }
+
+    private static IEnumerable<string> EnumerateFilesSafe(string root)
+    {
+        IEnumerable<string> files;
+        try
+        {
+            files = Directory.EnumerateFiles(root);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unable to list files in '{root}': {ex.Message}");
+            yield break;
+        }
+
+        foreach (var file in files)
+        {
+            var canonical = Path.GetFullPath(file);
+            if (!canonical.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"Skipping out-of-bounds file: {file}");
+                continue;
+            }
+
+            yield return file;
+        }
+
+        IEnumerable<string> subdirs;
+        try
+        {
+            subdirs = Directory.EnumerateDirectories(root);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unable to list directories in '{root}': {ex.Message}");
+            yield break;
+        }
+
+        foreach (var sub in subdirs)
+        foreach (var file in EnumerateFilesSafe(sub))
+            yield return file;
+    }
+
+    private static IEnumerable<string> EnumerateDirectoriesSafe(string root)
+    {
+        IEnumerable<string> subdirs;
+        try
+        {
+            subdirs = Directory.EnumerateDirectories(root);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unable to list directories in '{root}': {ex.Message}");
+            yield break;
+        }
+
+        foreach (var sub in subdirs)
+        {
+            var di = new DirectoryInfo(sub);
+            // Never follow junctions or symlinks
+            if (di.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                Console.WriteLine($"Skipping reparse point: {sub}");
+                continue;
+            }
+
+            // Confirm the resolved path is still under root
+            var canonical = Path.GetFullPath(sub);
+            if (!canonical.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"Skipping out-of-bounds path: {sub}");
+                continue;
+            }
+
+            foreach (var child in EnumerateDirectoriesSafe(sub))
+            {
+                yield return child;
+            }
+
+            yield return sub;
+        }
     }
 
     private void TryToDeleteFile(FileInfo fi, bool? dry)
