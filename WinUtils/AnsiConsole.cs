@@ -1,4 +1,4 @@
-﻿using Windows.Win32;
+using Windows.Win32;
 using Windows.Win32.System.Console;
 
 namespace WinUtils;
@@ -42,6 +42,16 @@ public static class AnsiConsole
             AnsiStyle.Bold => $"\e[1m{text}\e[0m",
             _              => text
         };
+    }
+
+    public static void StartTabSpinner()
+    {
+        Console.Write("\e]9;4;3;0\a");
+    }
+
+    public static void StopTabSpinner()
+    {
+        Console.Write("\e]9;4;0;0\a");
     }
 
     private static (int r, int g, int b) HexToRgb(string hex)
